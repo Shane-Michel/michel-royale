@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Michel Royale — Blackjack</title>
+
+<style>
+  /* ---------- Michel Royale Theme ---------- */
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: radial-gradient(circle at center, #033018, #010f08);
+    color: #f8f8f8;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3 {
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  #table {
+    max-width: 800px;
+    margin: 40px auto;
+    background: rgba(0,0,0,0.6);
+    border: 2px solid #d4af37;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 0 30px rgba(0,0,0,.7);
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity .6s, transform .6s;
+  }
+
+  .hand {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .hand img {
+    width: 110px;
+    margin: 5px;
+    border-radius: 8px;
+    box-shadow: 0 3px 6px rgba(0,0,0,.4);
+  }
+
+  #status {
+    font-size: 24px;
+    margin: 15px 0;
+    font-weight: bold;
+    color: #d4af37;
+  }
+
+  /* ---------- Buttons ---------- */
+  button {
+    background: #d4af37;
+    color: black;
+    padding: 12px 20px;
+    font-size: 18px;
+    border: none;
+    border-radius: 8px;
+    margin: 8px;
+    cursor: pointer;
+    transition: background .3s;
+  }
+  button:hover {
+    background: #f5d77b;
+  }
+  button:disabled {
+    background: #3a3a3a;
+    color: #888;
+    cursor: not-allowed;
+  }
+
+  /* ---------- Betting Chips ---------- */
+  #chips {
+    margin: 20px 0;
+  }
+  .chip {
+    display: inline-block;
+    width: 70px;
+    height: 70px;
+    background: #111;
+    border-radius: 50%;
+    border: 3px solid #d4af37;
+    margin: 10px;
+    line-height: 66px;
+    font-size: 20px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: transform .2s;
+  }
+  .chip:hover { transform: scale(1.1); }
+
+  #betDisplay {
+    font-size: 22px;
+    margin: 10px 0;
+    color: #f5d77b;
+  }
+
+  #bankroll {
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+
+  /* ---------- Modal ---------- */
+  #modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  #modalBox {
+    background: black;
+    border: 2px solid #d4af37;
+    border-radius: 16px;
+    padding: 30px;
+    max-width: 500px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(0,0,0,.7);
+  }
+  #modal h1 {
+    color: #d4af37;
+    margin-bottom: 10px;
+  }
+  #modal p {
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 600px) {
+    .hand img { width: 85px; }
+    .chip { width: 60px; height: 60px; font-size: 18px; line-height: 56px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ░░░ MICHEL ROYALE MODAL ░░░ -->
+<div id="modal">
+  <div id="modalBox">
+    <h1>♛ The Michel Royale</h1>
+    <h3>Premium Blackjack</h3>
+    <p>
+      Welcome to The Michel Royale — where elegance meets strategy.  
+      Start with your bankroll, place your bets, and take your seat at the table.
+    </p>
+    <p id="modalBankroll"></p>
+    <button id="startGameBtn">Enter the Casino</button>
+  </div>
+</div>
+
+<!-- ░░░ GAME TABLE ░░░ -->
+<div id="table">
+  <h2 style="text-align:center; color:#d4af37;">♠ The Michel Royale — Blackjack ♣</h2>
+
+  <div id="bankroll"></div>
+  <div id="betDisplay">Current Bet: $0</div>
+
+  <div id="chips">
+    <div class="chip" data-value="5">$5</div>
+    <div class="chip" data-value="10">$10</div>
+    <div class="chip" data-value="25">$25</div>
+    <div class="chip" data-value="50">$50</div>
+    <div class="chip" data-value="100">$100</div>
+  </div>
+
+  <button id="dealBtn">Deal</button>
+
+  <h3>Dealer</h3>
+  <div class="hand" id="dealer-hand"></div>
+
+  <h3>You</h3>
+  <div class="hand" id="player-hand"></div>
+
+  <div id="status"></div>
+
+  <button id="hitBtn" disabled>Hit</button>
+  <button id="standBtn" disabled>Stand</button>
+  <button id="restartBtn" style="display:none;">New Hand</button>
+</div>
+
+<script>
+/* ---------- LocalStorage Setup ---------- */
+const LS = {
+  bankroll: "michel_royale_bankroll",
+  hands: "michel_royale_hands_played",
+  streak: "michel_royale_win_streak",
+};
+
+let bankroll = parseInt(localStorage.getItem(LS.bankroll)) || 500;
+let handsPlayed = parseInt(localStorage.getItem(LS.hands)) || 0;
+let winStreak = parseInt(localStorage.getItem(LS.streak)) || 0;
+
+/* ---------- Game Variables ---------- */
+let deckId = null;
+let playerCards = [];
+let dealerCards = [];
+let currentBet = 0;
+let gameOver = false;
+
+/* ---------- Init Modal ---------- */
+document.getElementById("modalBankroll").textContent = 
+  `Current Bankroll: $${bankroll}`;
+
+document.getElementById("startGameBtn").onclick = () => {
+  document.getElementById("modal").style.display = "none";
+  setTimeout(() => {
+    const table = document.getElementById("table");
+    table.style.opacity = 1;
+    table.style.transform = "scale(1)";
+  }, 100);
+  updateUI();
+};
+
+/* ---------- Deck API ---------- */
+async function newDeck() {
+  const res = await fetch("https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1");
+  const data = await res.json();
+  deckId = data.deck_id;
+}
+
+async function draw(count = 1) {
+  const res = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=${count}`);
+  return (await res.json()).cards;
+}
+
+/* ---------- Card Values ---------- */
+function cardValue(card) {
+  if (["KING","QUEEN","JACK"].includes(card.value)) return 10;
+  if (card.value === "ACE") return 11;
+  return parseInt(card.value);
+}
+
+function handValue(cards) {
+  let total = cards.reduce((s,c)=>s+cardValue(c), 0);
+  let aces = cards.filter(c=>c.value==="ACE").length;
+  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  return total;
+}
+
+/* ---------- Rendering ---------- */
+function render() {
+  const dealerDiv = document.getElementById("dealer-hand");
+  const playerDiv = document.getElementById("player-hand");
+  dealerDiv.innerHTML = "";
+  playerDiv.innerHTML = "";
+
+  dealerCards.forEach((card,i)=>{
+    const img=document.createElement("img");
+    img.src = (i===0 && !gameOver) ?
+      "https://deckofcardsapi.com/static/img/back.png" :
+      card.image;
+    dealerDiv.appendChild(img);
+  });
+
+  playerCards.forEach(card=>{
+    const img=document.createElement("img");
+    img.src = card.image;
+    playerDiv.appendChild(img);
+  });
+}
+
+/* ---------- UI Update ---------- */
+function updateUI() {
+  document.getElementById("bankroll").textContent = `Bankroll: $${bankroll}`;
+  document.getElementById("betDisplay").textContent = `Current Bet: $${currentBet}`;
+}
+
+/* ---------- Betting Chips ---------- */
+document.querySelectorAll(".chip").forEach(chip=>{
+  chip.addEventListener("click", ()=>{
+    const val = parseInt(chip.dataset.value);
+    if (bankroll >= val) {
+      currentBet += val;
+      bankroll -= val;
+      updateUI();
+    }
+  });
+});
+
+/* ---------- Deal Button ---------- */
+document.getElementById("dealBtn").onclick = async () => {
+  if (currentBet === 0) {
+    alert("Place a bet first!");
+    return;
+  }
+
+  document.getElementById("hitBtn").disabled = false;
+  document.getElementById("standBtn").disabled = false;
+
+  await newDeck();
+  playerCards = await draw(2);
+  dealerCards = await draw(2);
+
+  gameOver = false;
+  document.getElementById("status").textContent = "";
+  render();
+};
+
+/* ---------- Hit ---------- */
+document.getElementById("hitBtn").onclick = async () => {
+  if (gameOver) return;
+  const newCard = await draw(1);
+  playerCards.push(...newCard);
+
+  if (handValue(playerCards) > 21) {
+    endGame("bust");
+  } else {
+    render();
+  }
+};
+
+/* ---------- Stand ---------- */
+document.getElementById("standBtn").onclick = async () => {
+  gameOver = true;
+
+  while (handValue(dealerCards) < 17) {
+    const newCard = await draw(1);
+    dealerCards.push(...newCard);
+  }
+
+  determineWinner();
+};
+
+/* ---------- Determine Winner ---------- */
+function determineWinner() {
+  const dealer = handValue(dealerCards);
+  const player = handValue(playerCards);
+
+  if (player > 21) return endGame("bust");
+  if (dealer > 21) return endGame("dealerBust");
+  if (player > dealer) return endGame("player");
+  if (player < dealer) return endGame("dealer");
+  return endGame("push");
+}
+
+/* ---------- End Game ---------- */
+function endGame(outcome) {
+  gameOver = true;
+  handsPlayed++;
+
+  let status = "";
+  switch(outcome) {
+    case "bust":
+      status = "❌ You busted! Dealer wins.";
+      winStreak = 0;
+      break;
+    case "dealerBust":
+      status = "🎉 Dealer busts! You win!";
+      bankroll += currentBet * 2;
+      winStreak++;
+      break;
+    case "player":
+      status = "🎉 You win!";
+      bankroll += currentBet * 2;
+      winStreak++;
+      break;
+    case "dealer":
+      status = "❌ Dealer wins.";
+      winStreak = 0;
+      break;
+    case "push":
+      status = "🤝 Push — bet returned.";
+      bankroll += currentBet;
+      break;
+  }
+
+  // Save stats
+  localStorage.setItem(LS.bankroll, bankroll);
+  localStorage.setItem(LS.hands, handsPlayed);
+  localStorage.setItem(LS.streak, winStreak);
+
+  currentBet = 0;
+  document.getElementById("status").textContent = status;
+  render();
+  updateUI();
+}
+
+/* ---------- Restart ---------- */
+document.getElementById("restartBtn").onclick = () => {
+  location.reload();
+};
+
+</script>
+
+</body>
+</html>
