@@ -29,9 +29,8 @@
     border-radius: 16px;
     padding: 20px;
     box-shadow: 0 0 30px rgba(0,0,0,.7);
-    opacity: 0;
-    transform: scale(0.95);
-    transition: opacity .6s, transform .6s;
+    opacity: 1;
+    transform: scale(1);
   }
 
   .hand {
@@ -108,34 +107,6 @@
     margin-bottom: 10px;
   }
 
-  /* ---------- Modal ---------- */
-  #modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-  }
-  #modalBox {
-    background: black;
-    border: 2px solid #d4af37;
-    border-radius: 16px;
-    padding: 30px;
-    max-width: 500px;
-    text-align: center;
-    box-shadow: 0 0 20px rgba(0,0,0,.7);
-  }
-  #modal h1 {
-    color: #d4af37;
-    margin-bottom: 10px;
-  }
-  #modal p {
-    margin-bottom: 20px;
-    line-height: 1.5;
-  }
-
   @media (max-width: 600px) {
     .hand img { width: 85px; }
     .chip { width: 60px; height: 60px; font-size: 18px; line-height: 56px; }
@@ -143,21 +114,6 @@
 </style>
 </head>
 <body>
-
-<!-- ░░░ MICHEL ROYALE MODAL ░░░ -->
-<div id="modal">
-  <div id="modalBox">
-    <h1>♛ The Michel Royale</h1>
-    <h3>Premium Blackjack</h3>
-    <p>
-      Welcome to The Michel Royale — where elegance meets strategy.  
-      Start with your bankroll, place your bets, and take your seat at the table.
-    </p>
-    <p id="modalBankroll"></p>
-    <button id="startGameBtn" type="button" aria-label="Enter the casino">Enter the Casino</button>
-  </div>
-</div>
-
 <!-- ░░░ GAME TABLE ░░░ -->
 <div id="table">
   <h2 style="text-align:center; color:#d4af37;">♠ The Michel Royale — Blackjack ♣</h2>
@@ -207,36 +163,6 @@ let playerCards = [];
 let dealerCards = [];
 let currentBet = 0;
 let gameOver = false;
-
-/* ---------- Init Modal ---------- */
-document.getElementById("modalBankroll").textContent =
-  `Current Bankroll: $${bankroll}`;
-
-function startGame() {
-  const modal = document.getElementById("modal");
-  const table = document.getElementById("table");
-
-  modal.style.display = "none";
-  modal.setAttribute("aria-hidden", "true");
-
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      table.style.opacity = 1;
-      table.style.transform = "scale(1)";
-      table.setAttribute("aria-hidden", "false");
-    }, 60);
-  });
-
-  updateUI();
-}
-
-const startButton = document.getElementById("startGameBtn");
-startButton.addEventListener("click", startGame);
-startButton.addEventListener("keyup", (event) => {
-  if (event.key === "Enter" || event.key === " ") {
-    startGame();
-  }
-});
 
 /* ---------- Local Deck ---------- */
 function buildDeck() {
@@ -319,6 +245,9 @@ function updateUI() {
   document.getElementById("bankroll").textContent = `Bankroll: $${bankroll}`;
   document.getElementById("betDisplay").textContent = `Current Bet: $${currentBet}`;
 }
+
+// Initialize UI on load
+updateUI();
 
 /* ---------- Betting Chips ---------- */
 document.querySelectorAll(".chip").forEach(chip=>{
