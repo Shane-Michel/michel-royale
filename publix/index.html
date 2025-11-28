@@ -154,7 +154,7 @@
       Start with your bankroll, place your bets, and take your seat at the table.
     </p>
     <p id="modalBankroll"></p>
-    <button id="startGameBtn">Enter the Casino</button>
+    <button id="startGameBtn" type="button" aria-label="Enter the casino">Enter the Casino</button>
   </div>
 </div>
 
@@ -209,18 +209,34 @@ let currentBet = 0;
 let gameOver = false;
 
 /* ---------- Init Modal ---------- */
-document.getElementById("modalBankroll").textContent = 
+document.getElementById("modalBankroll").textContent =
   `Current Bankroll: $${bankroll}`;
 
-document.getElementById("startGameBtn").onclick = () => {
-  document.getElementById("modal").style.display = "none";
-  setTimeout(() => {
-    const table = document.getElementById("table");
-    table.style.opacity = 1;
-    table.style.transform = "scale(1)";
-  }, 100);
+function startGame() {
+  const modal = document.getElementById("modal");
+  const table = document.getElementById("table");
+
+  modal.style.display = "none";
+  modal.setAttribute("aria-hidden", "true");
+
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      table.style.opacity = 1;
+      table.style.transform = "scale(1)";
+      table.setAttribute("aria-hidden", "false");
+    }, 60);
+  });
+
   updateUI();
-};
+}
+
+const startButton = document.getElementById("startGameBtn");
+startButton.addEventListener("click", startGame);
+startButton.addEventListener("keyup", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    startGame();
+  }
+});
 
 /* ---------- Deck API ---------- */
 async function newDeck() {
