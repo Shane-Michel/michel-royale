@@ -202,7 +202,7 @@ let winStreak = parseInt(localStorage.getItem(LS.streak)) || 0;
 let inRound = false;
 
 /* ---------- Game Variables ---------- */
-let deckId = null;
+let deck = [];
 let playerCards = [];
 let dealerCards = [];
 let currentBet = 0;
@@ -238,16 +238,44 @@ startButton.addEventListener("keyup", (event) => {
   }
 });
 
-/* ---------- Deck API ---------- */
-async function newDeck() {
-  const res = await fetch("https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1");
-  const data = await res.json();
-  deckId = data.deck_id;
+/* ---------- Local Deck ---------- */
+function buildDeck() {
+  const suits = ["HEARTS", "DIAMONDS", "CLUBS", "SPADES"];
+  const values = [
+    "ACE", "2", "3", "4", "5", "6", "7", "8", "9", "10", "JACK", "QUEEN", "KING"
+  ];
+
+  return suits.flatMap(suit => values.map(value => {
+    const codeValue = value === "10" ? "0" : value[0];
+    const code = `${codeValue}${suit[0]}`;
+
+    return {
+      value,
+      suit,
+      image: `https://deckofcardsapi.com/static/img/${code}.png`,
+    };
+  }));
 }
 
-async function draw(count = 1) {
-  const res = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=${count}`);
-  return (await res.json()).cards;
+function shuffleDeck(cards) {
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  return cards;
+}
+
+function newDeck() {
+  deck = shuffleDeck(buildDeck());
+}
+
+function draw(count = 1) {
+  const drawn = [];
+  for (let i = 0; i < count; i++) {
+    if (deck.length === 0) newDeck();
+    drawn.push(deck.pop());
+  }
+  return drawn;
 }
 
 /* ---------- Card Values ---------- */
@@ -306,7 +334,7 @@ document.querySelectorAll(".chip").forEach(chip=>{
 });
 
 /* ---------- Deal Button ---------- */
-document.getElementById("dealBtn").onclick = async () => {
+document.getElementById("dealBtn").onclick = () => {
   if (currentBet === 0) {
     alert("Place a bet first!");
     return;
@@ -320,9 +348,9 @@ document.getElementById("dealBtn").onclick = async () => {
   document.getElementById("hitBtn").disabled = false;
   document.getElementById("standBtn").disabled = false;
 
-  await newDeck();
-  playerCards = await draw(2);
-  dealerCards = await draw(2);
+  newDeck();
+  playerCards = draw(2);
+  dealerCards = draw(2);
 
   gameOver = false;
   document.getElementById("status").textContent = "";
@@ -330,9 +358,9 @@ document.getElementById("dealBtn").onclick = async () => {
 };
 
 /* ---------- Hit ---------- */
-document.getElementById("hitBtn").onclick = async () => {
+document.getElementById("hitBtn").onclick = () => {
   if (gameOver) return;
-  const newCard = await draw(1);
+  const newCard = draw(1);
   playerCards.push(...newCard);
 
   if (handValue(playerCards) > 21) {
@@ -343,11 +371,11 @@ document.getElementById("hitBtn").onclick = async () => {
 };
 
 /* ---------- Stand ---------- */
-document.getElementById("standBtn").onclick = async () => {
+document.getElementById("standBtn").onclick = () => {
   gameOver = true;
 
   while (handValue(dealerCards) < 17) {
-    const newCard = await draw(1);
+    const newCard = draw(1);
     dealerCards.push(...newCard);
   }
 
