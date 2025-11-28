@@ -199,6 +199,7 @@ const LS = {
 let bankroll = parseInt(localStorage.getItem(LS.bankroll)) || 500;
 let handsPlayed = parseInt(localStorage.getItem(LS.hands)) || 0;
 let winStreak = parseInt(localStorage.getItem(LS.streak)) || 0;
+let inRound = false;
 
 /* ---------- Game Variables ---------- */
 let deckId = null;
@@ -278,6 +279,7 @@ function updateUI() {
 /* ---------- Betting Chips ---------- */
 document.querySelectorAll(".chip").forEach(chip=>{
   chip.addEventListener("click", ()=>{
+    if (inRound) return; // lock bets during an active hand
     const val = parseInt(chip.dataset.value);
     if (bankroll >= val) {
       currentBet += val;
@@ -293,6 +295,11 @@ document.getElementById("dealBtn").onclick = async () => {
     alert("Place a bet first!");
     return;
   }
+
+  if (inRound) return;
+
+  inRound = true;
+  document.getElementById("dealBtn").disabled = true;
 
   document.getElementById("hitBtn").disabled = false;
   document.getElementById("standBtn").disabled = false;
@@ -347,6 +354,7 @@ function determineWinner() {
 function endGame(outcome) {
   gameOver = true;
   handsPlayed++;
+  inRound = false;
 
   let status = "";
   switch(outcome) {
@@ -381,6 +389,9 @@ function endGame(outcome) {
 
   currentBet = 0;
   document.getElementById("status").textContent = status;
+  document.getElementById("dealBtn").disabled = false;
+  document.getElementById("hitBtn").disabled = true;
+  document.getElementById("standBtn").disabled = true;
   render();
   updateUI();
 }
