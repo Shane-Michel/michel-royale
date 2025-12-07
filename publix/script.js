@@ -1,11 +1,19 @@
 /* ---------- LocalStorage Setup ---------- */
 const LS = {
-  bankroll: "michel_royale_bankroll",
+  bankrollUSD: "michel_royale_bankroll",
+  bankrollXRP: "michel_royale_bankroll_xrp",
+  currency: "michel_royale_currency",
   hands: "michel_royale_hands_played",
   streak: "michel_royale_win_streak",
 };
 
-let bankroll = parseInt(localStorage.getItem(LS.bankroll)) || 500;
+const bankrolls = {
+  USD: parseInt(localStorage.getItem(LS.bankrollUSD), 10) || 500,
+  XRP: parseFloat(localStorage.getItem(LS.bankrollXRP)) || 150,
+};
+
+let currencyMode = localStorage.getItem(LS.currency) || "USD";
+let bankroll = bankrolls[currencyMode] ?? bankrolls.USD;
 let handsPlayed = parseInt(localStorage.getItem(LS.hands)) || 0;
 let winStreak = parseInt(localStorage.getItem(LS.streak)) || 0;
 let inRound = false;
@@ -17,6 +25,37 @@ let activeHandIndex = 0;
 let dealerCards = [];
 let currentBet = 0;
 let gameOver = false;
+
+/* ---------- Currency Helpers ---------- */
+const chipSets = {
+  USD: [5, 10, 25, 50, 100],
+  XRP: [1, 2, 5, 10, 20],
+};
+
+const XRPL_DEMO_ADDRESS = "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY";
+
+function getCurrencySymbol() {
+  return currencyMode === "XRP" ? "XRP " : "$";
+}
+
+function formatAmount(value) {
+  const formatted = currencyMode === "XRP"
+    ? parseFloat(value).toFixed(2)
+    : Math.round(value);
+  return formatted.replace(/\.00$/, "");
+}
+
+function persistBankroll() {
+  bankrolls[currencyMode] = bankroll;
+  const key = currencyMode === "XRP" ? LS.bankrollXRP : LS.bankrollUSD;
+  localStorage.setItem(key, bankroll);
+  localStorage.setItem(LS.currency, currencyMode);
+}
+
+function changeBankroll(delta) {
+  bankroll = Math.max(0, bankroll + delta);
+  persistBankroll();
+}
 
 /* ---------- Local Deck ---------- */
 function buildDeck() {
@@ -88,6 +127,30 @@ function render() {
   renderPlayerHands();
 }
 
+function renderChips() {
+  const chipsContainer = document.getElementById("chips");
+  chipsContainer.innerHTML = "";
+
+  chipSets[currencyMode].forEach(value => {
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.dataset.value = value;
+    chip.textContent = `${getCurrencySymbol()}${formatAmount(value)}`;
+
+    chip.addEventListener("click", () => {
+      if (inRound) return;
+      const val = parseFloat(chip.dataset.value);
+      if (bankroll >= val) {
+        currentBet += val;
+        changeBankroll(-val);
+        updateUI();
+      }
+    });
+
+    chipsContainer.appendChild(chip);
+  });
+}
+
 function renderPlayerHands() {
   const playerDiv = document.getElementById("player-hand");
   playerDiv.innerHTML = "";
@@ -136,12 +199,13 @@ function outcomeLabel(outcome) {
 
 /* ---------- UI Update ---------- */
 function updateUI() {
-  document.getElementById("bankroll").textContent = `Bankroll: $${bankroll}`;
+  document.getElementById("bankroll").textContent = `Bankroll: ${getCurrencySymbol()}${formatAmount(bankroll)} (${currencyMode})`;
   const totalBet = inRound && playerHands.length
     ? playerHands.reduce((sum, hand) => sum + hand.bet, 0)
     : currentBet;
-  document.getElementById("betDisplay").textContent = `Current Bet: $${totalBet}`;
+  document.getElementById("betDisplay").textContent = `Current Bet: ${getCurrencySymbol()}${formatAmount(totalBet)}`;
   updateActionButtons();
+  toggleXrpControls();
 }
 
 function updateActionButtons() {
@@ -157,20 +221,71 @@ function updateActionButtons() {
   splitBtn.disabled = !canSplitNow;
 }
 
+function toggleXrpControls() {
+  const xrpControls = document.getElementById("xrpControls");
+  const xrpOnly = currencyMode === "XRP";
+
+  if (!xrpControls) return;
+
+  xrpControls.style.display = xrpOnly ? "block" : "none";
+  document.getElementById("xrplAddress").textContent = XRPL_DEMO_ADDRESS;
+
+  const status = document.getElementById("xrpStatus");
+  if (xrpOnly) {
+    status.textContent = "XRP mode is live — fund via Xaman and place bets in XRP.";
+  } else {
+    status.textContent = "Switch to XRP to use your Xaman wallet for bets.";
+  }
+}
+
 // Initialize UI on load
+renderChips();
 updateUI();
 
-/* ---------- Betting Chips ---------- */
-document.querySelectorAll(".chip").forEach(chip => {
-  chip.addEventListener("click", () => {
-    if (inRound) return; // lock bets during an active hand
-    const val = parseInt(chip.dataset.value);
-    if (bankroll >= val) {
-      currentBet += val;
-      bankroll -= val;
-      updateUI();
-    }
-  });
+/* ---------- Currency + Xaman Helpers ---------- */
+const currencySelect = document.getElementById("currencyMode");
+currencySelect.value = currencyMode;
+
+currencySelect.addEventListener("change", () => {
+  if (inRound) {
+    alert("Finish the current hand before switching currencies.");
+    currencySelect.value = currencyMode;
+    return;
+  }
+
+  currencyMode = currencySelect.value;
+  bankroll = bankrolls[currencyMode] ?? (currencyMode === "XRP" ? 150 : 500);
+  persistBankroll();
+  currentBet = 0;
+  gameOver = false;
+  renderChips();
+  render();
+  updateUI();
+});
+
+document.getElementById("xamanLink").addEventListener("click", () => {
+  const deepLink = `https://xumm.app/detect/xapp?to=${XRPL_DEMO_ADDRESS}`;
+  window.open(deepLink, "_blank");
+});
+
+document.getElementById("addXrpBtn").addEventListener("click", () => {
+  if (currencyMode !== "XRP") {
+    alert("Switch to XRP mode to record Xaman deposits.");
+    return;
+  }
+
+  const amountField = document.getElementById("xrpAmount");
+  const amount = parseFloat(amountField.value);
+
+  if (!amount || amount <= 0) {
+    alert("Enter a valid XRP amount to add to your bankroll.");
+    return;
+  }
+
+  changeBankroll(amount);
+  amountField.value = "";
+  document.getElementById("xrpStatus").textContent = `Added ${formatAmount(amount)} XRP from Xaman.`;
+  updateUI();
 });
 
 /* ---------- Deal Button ---------- */
@@ -242,7 +357,7 @@ document.getElementById("splitBtn").onclick = () => {
     return;
   }
 
-  bankroll -= hand.bet;
+  changeBankroll(-hand.bet);
   currentBet += hand.bet;
 
   const [firstCard, secondCard] = hand.cards;
@@ -289,10 +404,10 @@ function resolveDealerRound() {
     hand.outcome = outcome;
 
     if (outcome === "player" || outcome === "dealerBust") {
-      bankroll += hand.bet * 2;
+      changeBankroll(hand.bet * 2);
       wins++;
     } else if (outcome === "push") {
-      bankroll += hand.bet;
+      changeBankroll(hand.bet);
     } else {
       losses++;
     }
@@ -311,9 +426,9 @@ function resolveDealerRound() {
     winStreak++;
   }
 
-  localStorage.setItem(LS.bankroll, bankroll);
   localStorage.setItem(LS.hands, handsPlayed);
   localStorage.setItem(LS.streak, winStreak);
+  persistBankroll();
 
   currentBet = 0;
   document.getElementById("status").innerHTML = results.join("<br>");
