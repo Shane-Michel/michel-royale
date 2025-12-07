@@ -13,6 +13,11 @@ h1, h2, h3 {
   letter-spacing: 1px;
 }
 
+.table-title {
+  text-align: center;
+  color: #d4af37;
+}
+
 #table {
   max-width: 800px;
   margin: 40px auto;
@@ -67,6 +72,10 @@ button:disabled {
   background: #3a3a3a;
   color: #888;
   cursor: not-allowed;
+}
+
+#restartBtn {
+  display: none;
 }
 
 /* ---------- Betting Chips ---------- */
