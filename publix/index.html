@@ -14,12 +14,35 @@
   <div id="bankroll"></div>
   <div id="betDisplay">Current Bet: $0</div>
 
-  <div id="chips">
-    <div class="chip" data-value="5">$5</div>
-    <div class="chip" data-value="10">$10</div>
-    <div class="chip" data-value="25">$25</div>
-    <div class="chip" data-value="50">$50</div>
-    <div class="chip" data-value="100">$100</div>
+  <div id="walletTools">
+    <label for="currencyMode">Play currency:</label>
+    <select id="currencyMode">
+      <option value="USD">USD — table chips</option>
+      <option value="XRP">XRP — connect Xaman</option>
+    </select>
+    <div id="xrpStatus" class="helper-text">Switch to XRP to use your Xaman wallet for bets.</div>
+  </div>
+
+  <div id="chips"></div>
+
+  <div id="xrpControls" class="panel">
+    <h4>Bet with XRP + Xaman</h4>
+    <p>Use your Xaman wallet to fund the table in XRP. Copy the XRPL address, open Xaman, send your chips, then confirm the deposit below.</p>
+
+    <div class="xrp-row">
+      <div>
+        <div class="muted">XRPL demo address</div>
+        <div id="xrplAddress" class="address">Loading...</div>
+      </div>
+      <button id="xamanLink" class="secondary">Open Xaman</button>
+    </div>
+
+    <div class="xrp-row">
+      <input type="number" id="xrpAmount" min="0" step="0.1" placeholder="Add XRP to bankroll" />
+      <button id="addXrpBtn">Confirm XRP Deposit</button>
+    </div>
+
+    <div class="helper-text">Note: This is a demo flow. Confirm deposits after you complete the Xaman transfer.</div>
   </div>
 
   <button id="dealBtn">Deal</button>
