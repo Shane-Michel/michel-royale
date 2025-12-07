@@ -39,9 +39,13 @@ function getCurrencySymbol() {
 }
 
 function formatAmount(value) {
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) return value;
+
   const formatted = currencyMode === "XRP"
-    ? parseFloat(value).toFixed(2)
-    : Math.round(value);
+    ? numericValue.toFixed(2)
+    : Math.round(numericValue).toString();
+
   return formatted.replace(/\.00$/, "");
 }
 
