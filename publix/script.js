@@ -12,7 +12,8 @@ let inRound = false;
 
 /* ---------- Game Variables ---------- */
 let deck = [];
-let playerCards = [];
+let playerHands = [];
+let activeHandIndex = 0;
 let dealerCards = [];
 let currentBet = 0;
 let gameOver = false;
@@ -74,9 +75,7 @@ function handValue(cards) {
 /* ---------- Rendering ---------- */
 function render() {
   const dealerDiv = document.getElementById("dealer-hand");
-  const playerDiv = document.getElementById("player-hand");
   dealerDiv.innerHTML = "";
-  playerDiv.innerHTML = "";
 
   dealerCards.forEach((card, i) => {
     const img = document.createElement("img");
@@ -86,17 +85,76 @@ function render() {
     dealerDiv.appendChild(img);
   });
 
-  playerCards.forEach(card => {
-    const img = document.createElement("img");
-    img.src = card.image;
-    playerDiv.appendChild(img);
+  renderPlayerHands();
+}
+
+function renderPlayerHands() {
+  const playerDiv = document.getElementById("player-hand");
+  playerDiv.innerHTML = "";
+
+  playerHands.forEach((hand, idx) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "player-hand";
+    if (idx === activeHandIndex && !gameOver && inRound) {
+      wrapper.classList.add("active-hand");
+    }
+
+    const label = document.createElement("div");
+    label.className = "hand-label";
+    const handResult = hand.outcome ? ` — ${outcomeLabel(hand.outcome)}` : "";
+    label.textContent = `Hand ${idx + 1}${handResult}`;
+    wrapper.appendChild(label);
+
+    const cardsRow = document.createElement("div");
+    cardsRow.className = "hand";
+    hand.cards.forEach(card => {
+      const img = document.createElement("img");
+      img.src = card.image;
+      cardsRow.appendChild(img);
+    });
+
+    wrapper.appendChild(cardsRow);
+    playerDiv.appendChild(wrapper);
   });
+}
+
+function outcomeLabel(outcome) {
+  switch (outcome) {
+    case "player":
+    case "dealerBust":
+      return "Win";
+    case "dealer":
+      return "Lose";
+    case "push":
+      return "Push";
+    case "bust":
+      return "Bust";
+    default:
+      return "";
+  }
 }
 
 /* ---------- UI Update ---------- */
 function updateUI() {
   document.getElementById("bankroll").textContent = `Bankroll: $${bankroll}`;
-  document.getElementById("betDisplay").textContent = `Current Bet: $${currentBet}`;
+  const totalBet = inRound && playerHands.length
+    ? playerHands.reduce((sum, hand) => sum + hand.bet, 0)
+    : currentBet;
+  document.getElementById("betDisplay").textContent = `Current Bet: $${totalBet}`;
+  updateActionButtons();
+}
+
+function updateActionButtons() {
+  const hitBtn = document.getElementById("hitBtn");
+  const standBtn = document.getElementById("standBtn");
+  const splitBtn = document.getElementById("splitBtn");
+
+  hitBtn.disabled = !inRound || gameOver;
+  standBtn.disabled = !inRound || gameOver;
+
+  const currentHand = playerHands[activeHandIndex];
+  const canSplitNow = inRound && !gameOver && playerHands.length === 1 && canSplit(currentHand);
+  splitBtn.disabled = !canSplitNow;
 }
 
 // Initialize UI on load
@@ -127,99 +185,154 @@ document.getElementById("dealBtn").onclick = () => {
   inRound = true;
   document.getElementById("dealBtn").disabled = true;
 
-  document.getElementById("hitBtn").disabled = false;
-  document.getElementById("standBtn").disabled = false;
-
   newDeck();
-  playerCards = draw(2);
+  playerHands = [{
+    cards: draw(2),
+    bet: currentBet,
+    outcome: null,
+    done: false,
+  }];
+  activeHandIndex = 0;
   dealerCards = draw(2);
 
   gameOver = false;
   document.getElementById("status").textContent = "";
   render();
+  updateActionButtons();
 };
 
 /* ---------- Hit ---------- */
 document.getElementById("hitBtn").onclick = () => {
-  if (gameOver) return;
-  const newCard = draw(1);
-  playerCards.push(...newCard);
+  if (gameOver || !inRound) return;
+  const hand = playerHands[activeHandIndex];
+  hand.cards.push(...draw(1));
 
-  if (handValue(playerCards) > 21) {
-    endGame("bust");
+  if (handValue(hand.cards) > 21) {
+    hand.outcome = "bust";
+    hand.done = true;
+    advanceToNextHand();
   } else {
     render();
+    updateActionButtons();
   }
 };
 
 /* ---------- Stand ---------- */
 document.getElementById("standBtn").onclick = () => {
-  gameOver = true;
-
-  while (handValue(dealerCards) < 17) {
-    const newCard = draw(1);
-    dealerCards.push(...newCard);
-  }
-
-  determineWinner();
+  if (gameOver || !inRound) return;
+  playerHands[activeHandIndex].done = true;
+  advanceToNextHand();
 };
 
-/* ---------- Determine Winner ---------- */
-function determineWinner() {
-  const dealer = handValue(dealerCards);
-  const player = handValue(playerCards);
-
-  if (player > 21) return endGame("bust");
-  if (dealer > 21) return endGame("dealerBust");
-  if (player > dealer) return endGame("player");
-  if (player < dealer) return endGame("dealer");
-  return endGame("push");
+/* ---------- Split ---------- */
+function canSplit(hand) {
+  if (!hand) return false;
+  if (hand.cards.length !== 2) return false;
+  return cardValue(hand.cards[0]) === cardValue(hand.cards[1]);
 }
 
-/* ---------- End Game ---------- */
-function endGame(outcome) {
-  gameOver = true;
-  handsPlayed++;
-  inRound = false;
+document.getElementById("splitBtn").onclick = () => {
+  if (gameOver || !inRound) return;
 
-  let status = "";
-  switch (outcome) {
-    case "bust":
-      status = "❌ You busted! Dealer wins.";
-      winStreak = 0;
-      break;
-    case "dealerBust":
-      status = "🎉 Dealer busts! You win!";
-      bankroll += currentBet * 2;
-      winStreak++;
-      break;
-    case "player":
-      status = "🎉 You win!";
-      bankroll += currentBet * 2;
-      winStreak++;
-      break;
-    case "dealer":
-      status = "❌ Dealer wins.";
-      winStreak = 0;
-      break;
-    case "push":
-      status = "🤝 Push — bet returned.";
-      bankroll += currentBet;
-      break;
+  const hand = playerHands[activeHandIndex];
+  if (!canSplit(hand)) return;
+
+  if (bankroll < hand.bet) {
+    alert("Not enough bankroll to split.");
+    return;
   }
 
-  // Save stats
+  bankroll -= hand.bet;
+  currentBet += hand.bet;
+
+  const [firstCard, secondCard] = hand.cards;
+  hand.cards = [firstCard, ...draw(1)];
+
+  const newHand = {
+    cards: [secondCard, ...draw(1)],
+    bet: hand.bet,
+    outcome: null,
+    done: false,
+  };
+
+  playerHands.splice(activeHandIndex + 1, 0, newHand);
+  render();
+  updateUI();
+};
+
+function advanceToNextHand() {
+  const nextIndex = playerHands.findIndex((hand, idx) => !hand.done && idx > activeHandIndex);
+
+  if (nextIndex !== -1) {
+    activeHandIndex = nextIndex;
+    render();
+    updateActionButtons();
+    return;
+  }
+
+  resolveDealerRound();
+}
+
+function resolveDealerRound() {
+  if (gameOver) return;
+
+  while (handValue(dealerCards) < 17) {
+    dealerCards.push(...draw(1));
+  }
+
+  const dealerTotal = handValue(dealerCards);
+  let wins = 0;
+  let losses = 0;
+
+  const results = playerHands.map((hand, idx) => {
+    const outcome = hand.outcome || evaluateOutcome(hand, dealerTotal);
+    hand.outcome = outcome;
+
+    if (outcome === "player" || outcome === "dealerBust") {
+      bankroll += hand.bet * 2;
+      wins++;
+    } else if (outcome === "push") {
+      bankroll += hand.bet;
+    } else {
+      losses++;
+    }
+
+    const label = outcomeLabel(outcome);
+    return `Hand ${idx + 1}: ${label}`;
+  });
+
+  handsPlayed++;
+  inRound = false;
+  gameOver = true;
+
+  if (losses > 0) {
+    winStreak = 0;
+  } else if (wins > 0) {
+    winStreak++;
+  }
+
   localStorage.setItem(LS.bankroll, bankroll);
   localStorage.setItem(LS.hands, handsPlayed);
   localStorage.setItem(LS.streak, winStreak);
 
   currentBet = 0;
-  document.getElementById("status").textContent = status;
+  document.getElementById("status").innerHTML = results.join("<br>");
   document.getElementById("dealBtn").disabled = false;
   document.getElementById("hitBtn").disabled = true;
   document.getElementById("standBtn").disabled = true;
+  document.getElementById("splitBtn").disabled = true;
   render();
   updateUI();
+}
+
+function evaluateOutcome(hand, dealerTotal) {
+  const playerTotal = handValue(hand.cards);
+
+  if (playerTotal > 21) return "bust";
+  if (dealerTotal > 21) return "dealerBust";
+  if (playerTotal > dealerTotal) return "player";
+  if (playerTotal < dealerTotal) return "dealer";
+  return "push";
 }
 
 /* ---------- Restart ---------- */
