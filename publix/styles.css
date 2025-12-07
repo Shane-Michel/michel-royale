@@ -1,0 +1,119 @@
+/* ---------- Michel Royale Theme ---------- */
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at center, #033018, #010f08);
+  color: #f8f8f8;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+h1, h2, h3 {
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+#table {
+  max-width: 800px;
+  margin: 40px auto;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid #d4af37;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, .7);
+  opacity: 1;
+  transform: scale(1);
+}
+
+.hand {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.hand img {
+  width: 110px;
+  margin: 5px;
+  border-radius: 8px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, .4);
+}
+
+#status {
+  font-size: 24px;
+  margin: 15px 0;
+  font-weight: bold;
+  color: #d4af37;
+}
+
+/* ---------- Buttons ---------- */
+button {
+  background: #d4af37;
+  color: black;
+  padding: 12px 20px;
+  font-size: 18px;
+  border: none;
+  border-radius: 8px;
+  margin: 8px;
+  cursor: pointer;
+  transition: background .3s;
+}
+
+button:hover {
+  background: #f5d77b;
+}
+
+button:disabled {
+  background: #3a3a3a;
+  color: #888;
+  cursor: not-allowed;
+}
+
+/* ---------- Betting Chips ---------- */
+#chips {
+  margin: 20px 0;
+}
+
+.chip {
+  display: inline-block;
+  width: 70px;
+  height: 70px;
+  background: #111;
+  border-radius: 50%;
+  border: 3px solid #d4af37;
+  margin: 10px;
+  line-height: 66px;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: transform .2s;
+}
+
+.chip:hover {
+  transform: scale(1.1);
+}
+
+#betDisplay {
+  font-size: 22px;
+  margin: 10px 0;
+  color: #f5d77b;
+}
+
+#bankroll {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+  .hand img {
+    width: 85px;
+  }
+
+  .chip {
+    width: 60px;
+    height: 60px;
+    font-size: 18px;
+    line-height: 56px;
+  }
+}
